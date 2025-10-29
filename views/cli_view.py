@@ -135,7 +135,7 @@ class CLIView:
         )
 
         quantity = float(Prompt.ask("Enter quantity"))
-        purchase_price = info["current_price"]
+        purchase_price = float(Prompt.ask("Enter your Purchase Value"))
 
         self.controller.add_asset(ticker, sector, asset_class, quantity, purchase_price)
 
@@ -155,22 +155,33 @@ class CLIView:
 
     def handle_price_history(self) -> None:
         """Handle displaying price history."""
-        ticker = Prompt.ask("Enter ticker symbol").upper()
+        ticker_in_portfolio = Confirm.ask(
+            "check Ticker in the portfolio?", default=False
+        )
+        if not ticker_in_portfolio:
+            ticker = Prompt.ask("Enter ticker symbol").upper()
+        else:
+            ticks = [a.ticker for a in self.controller.portfolio.assets]
+            ticker = Prompt.ask("Which ticker do you want to check?", choices=ticks)
         days = int(Prompt.ask("Enter number of days", default="365"))
 
         self.controller.show_price_history(ticker, days)
 
     def handle_compare_tickers(self) -> None:
         """Handle comparing multiple tickers."""
-        tickers_input = Prompt.ask(
-            "Enter tickers separated by comma (e.g., AAPL,MSFT,GOOGL)"
-        )
-        tickers = [t.strip().upper() for t in tickers_input.split(",")]
+
+        portfolio_tickers = Confirm.ask("Use Portfolio Tickers?", default=False)
+        tickers = []
+        if not portfolio_tickers:
+            tickers_input = Prompt.ask(
+                "Enter tickers separated by comma (e.g., AAPL,MSFT,GOOGL)"
+            )
+            tickers = [t.strip().upper() for t in tickers_input.split(",")]
 
         days = int(Prompt.ask("Enter number of days", default="365"))
         normalize = Confirm.ask("Normalize prices?", default=True)
 
-        self.controller.compare_tickers(tickers, days, normalize)
+        self.controller.compare_tickers(portfolio_tickers, tickers, days, normalize)
 
     def handle_analytics(self) -> None:
         """Handle portfolio analytics display."""
@@ -196,7 +207,7 @@ class CLIView:
 
         # Placeholder for future implementation
         years = int(Prompt.ask("Simulation years", default="15"))
-        paths = int(Prompt.ask("Number of paths", default="100000"))
+        paths = int(Prompt.ask("Number of paths", default="100,000"))
 
         self.console.print(
             f"\n[yellow]Simulation setup: {years} years, {paths:,} paths[/yellow]"

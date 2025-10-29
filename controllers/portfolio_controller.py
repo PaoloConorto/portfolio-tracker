@@ -106,7 +106,7 @@ class PortfolioController:
         Display portfolio weights.
 
         Args:
-            by: How to group weights ('asset', 'sector', or 'class')
+            by: How to group weights ("asset", "sector", or "class")
         """
         if not self.portfolio.assets:
             self.table_view.print_warning("Portfolio is empty")
@@ -153,12 +153,17 @@ class PortfolioController:
         self.chart_view.plot_price_history(ticker, df)
 
     def compare_tickers(
-        self, tickers: list, days: int = 365, normalize: bool = True
+        self,
+        portfolio_tickers: bool,
+        tickers: list,
+        days: int = 365,
+        normalize: bool = True,
     ) -> None:
         """
         Compare multiple tickers on one chart.
 
         Args:
+            portfolio_tickers: whether to use the portfolio tickers
             tickers: List of ticker symbols
             days: Number of days of history
             normalize: Whether to normalize prices
@@ -166,6 +171,15 @@ class PortfolioController:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
 
+        if portfolio_tickers:
+            if not self.portfolio.assets:
+                self.table_view.print_warning(
+                    "Portfolio is empty. Add some assets first!"
+                )
+                return
+            for a in self.portfolio.assets:
+                print(a.ticker)
+            tickers = [a.ticker for a in self.portfolio.assets]
         data = {}
         for ticker in tickers:
             ticker = ticker.upper()

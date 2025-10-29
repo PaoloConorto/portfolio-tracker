@@ -4,6 +4,7 @@ Uses matplotlib for plotting price histories and portfolio charts.
 """
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import pandas as pd
 from typing import List, Dict
 from datetime import datetime
@@ -38,14 +39,16 @@ class PlotView:
         _, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), height_ratios=[3, 1])
 
         # Price plot
+        euro_fmt = FuncFormatter(lambda x, p: f"€{x:,.0f}")
         ax1.plot(
             df.index, df["Close"], label="Close Price", linewidth=2, color="#2E86AB"
         )
         ax1.fill_between(df.index, df["Low"], df["High"], alpha=0.2, color="#2E86AB")
         ax1.set_title(f"{ticker} Price History", fontsize=16, fontweight="bold")
-        ax1.set_ylabel("Price (€)", fontsize=12)
+        ax1.yaxis.set_major_formatter(euro_fmt)
+        ax1.set_ylabel("Price", fontsize=12)
         ax1.legend(loc="best")
-        ax1.grid(True, alpha=0.3)
+        ax1.grid(True, alpha=0.1)
 
         # Volume plot
         colors = [
@@ -110,14 +113,20 @@ class PlotView:
                     color=colors[i % len(colors)],
                 )
 
-        ylabel = "Change (%)" if normalize else "Price (€)"
+        euro_fmt = FuncFormatter(lambda x, p: f"€{x:,.0f}")
+        pct_fmt = FuncFormatter(lambda x, p: f"{x:.1f}%")
+        if normalize:
+            ax.yaxis.set_major_formatter(pct_fmt)
+        else:
+            ax.yaxis.set_major_formatter(euro_fmt)
+        ylabel = "Change" if normalize else "Price"
         title = "Normalized Price Comparison" if normalize else "Price Comparison"
 
         ax.set_title(title, fontsize=16, fontweight="bold")
         ax.set_xlabel("Date", fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
         ax.legend(loc="best", fontsize=10)
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.1)
 
         if normalize:
             ax.axhline(y=0, color="black", linestyle="--", linewidth=0.8, alpha=0.5)
@@ -202,21 +211,48 @@ class PlotView:
 
         _, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
+        euro_fmt = FuncFormatter(lambda x, p: f"€{x:,.0f}")
+        pct_fmt = FuncFormatter(lambda x, p: f"{x:.1f}%")
+
         # Value bar chart
         colors_value = plt.cm.viridis(range(len(sectors)))
-        ax1.bar(sectors, values, color=colors_value, alpha=0.7)
+        bars1 = ax1.bar(
+            sectors,
+            values,
+            color=colors_value,
+            alpha=0.85,
+            edgecolor="black",
+            linewidth=0.6,
+        )
         ax1.set_title("Sector Values", fontsize=14, fontweight="bold")
-        ax1.set_ylabel("Value (€)", fontsize=12)
+        ax1.set_ylabel("Value", fontsize=12)
         ax1.tick_params(axis="x", rotation=45)
-        ax1.grid(axis="y", alpha=0.3)
+        ax1.yaxis.set_major_formatter(euro_fmt)
+        ax1.margins(y=0.1)
+        # Added labels
+        ax1.bar_label(
+            bars1, labels=[f"€{v:,.0f}" for v in values], padding=3, fontsize=9
+        )
 
         # Weight bar chart
         colors_weight = plt.cm.plasma(range(len(sectors)))
-        ax2.bar(sectors, weights, color=colors_weight, alpha=0.7)
+        bars2 = ax2.bar(
+            sectors,
+            weights,
+            color=colors_weight,
+            alpha=0.85,
+            edgecolor="black",
+            linewidth=0.6,
+        )
         ax2.set_title("Sector Weights", fontsize=14, fontweight="bold")
-        ax2.set_ylabel("Weight (%)", fontsize=12)
+        ax2.set_ylabel("Weight", fontsize=12)
         ax2.tick_params(axis="x", rotation=45)
-        ax2.grid(axis="y", alpha=0.3)
+        ax2.yaxis.set_major_formatter(pct_fmt)
+        ax2.margins(y=0.1)
+        # Added Labels
+        ax2.bar_label(
+            bars2, labels=[f"{w:.1f}%" for w in weights], padding=3, fontsize=9
+        )
 
         plt.tight_layout()
 

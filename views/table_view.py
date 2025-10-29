@@ -156,7 +156,7 @@ class TableView:
 
         stats_text.append("Total P/L: ", style="bold")
         stats_text.append(
-            f"{pl_symbol}€{total_pl:,.2f} ({pl_symbol}{total_pl_pct:.2f}%)",
+            f"{pl_symbol}€{total_pl:,.2f} ({pl_symbol}{total_pl_pct:,.2f}%)",
             style=pl_color,
         )
 
