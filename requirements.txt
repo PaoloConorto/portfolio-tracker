@@ -1,0 +1,27 @@
+# Portfolio Tracker Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core dependencies
+yfinance
+pandas
+numpy
+
+# Visualization
+matplotlib
+seaborn
+
+# CLI interface
+rich
+
+# Data validation
+pydantic
+
+# Development dependencies
+pytest
+black
+flake8
+mypy
+
+# Forecast dependencies
+statsmodels
+scipy
