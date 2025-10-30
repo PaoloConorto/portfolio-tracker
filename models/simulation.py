@@ -62,7 +62,7 @@ class TCopulaGBMSimulator:
         self.dt = float(dt)
         self.sqrt_dt = np.sqrt(self.dt)
         self.V0 = float(V0)
-        self.rng = rng
+        self.rng = np.random.default_rng(seed=rng)
 
         # Precompute buy-and-hold shares from initial weights
         # Shares = (w_i * V0) / S0_i

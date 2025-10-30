@@ -5,7 +5,7 @@ Represents a single investment asset with all its properties and methods.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 
 @dataclass
@@ -30,6 +30,8 @@ class Asset:
     purchase_price: float
     purchase_date: datetime = field(default_factory=datetime.now)
     current_price: Optional[float] = None
+    drift: float = 0.068
+    volatility: float = 0.16
 
     def __post_init__(self):
         """Validate and normalize data after initialization."""
@@ -62,6 +64,15 @@ class Asset:
         if self.transaction_value == 0:
             return 0.0
         return (self.profit_loss / self.transaction_value) * 100
+
+    def add_real_parameters(self, par: Tuple[float]) -> None:
+        """Adds the actual historical parameters
+
+        Args:
+            par (tuple): parameters
+        """
+        self.drift = par[0]
+        self.volatility = par[1]
 
     def update_price(self, new_price: float) -> None:
         """

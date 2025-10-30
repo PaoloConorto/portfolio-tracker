@@ -5,7 +5,8 @@ Uses yfinance for free stock market data.
 
 import yfinance as yf
 import pandas as pd
-from typing import Optional, List
+import numpy as np
+from typing import Optional, List, Tuple
 from datetime import datetime, timedelta
 
 
@@ -101,6 +102,100 @@ class PriceService:
         except Exception as e:
             print(f"Error fetching historical data for {ticker}: {e}")
             return pd.DataFrame()
+
+    def get_drift_volatility(self, ticker: str):
+        """Get annualized drift and volatility for a ticker
+
+        Args:
+            ticker: relevant ticker
+        """
+        try:
+            end_date = datetime.now()
+            start_date_5_years = end_date - timedelta(days=5 * 365)
+            ticker = ticker.upper()
+            stock = yf.Ticker(ticker)
+
+            # Get historical data and convert to timezone-naive
+            history_data = stock.history(period="max")
+            min_date = history_data.index.min()
+
+            # Convert to timezone-naive if needed
+            if min_date.tzinfo is not None:
+                min_date = min_date.tz_localize(None)
+
+            # Make start_date_5_years timezone-naive
+            start_date_5_years = start_date_5_years.replace(tzinfo=None)
+
+            start_date = min(start_date_5_years, min_date)
+
+            # Fetch data
+            df = stock.history(start=start_date, end=end_date, interval="1mo")
+            if df.empty:
+                print(f"No data found for {ticker}")
+                return None
+
+            mclose = df["Close"].resample("ME").last()
+            r_m = np.log(mclose / mclose.shift(1)).dropna()
+
+            mu_m = r_m.mean()
+            sigma_m = r_m.std(ddof=1)
+            return 12 * mu_m, np.sqrt(12) * sigma_m
+
+        except Exception as e:
+            print(f"Error fetching drift and volatility data for {ticker}: {e}")
+            return None
+
+    def get_correlations(self, ticker_list: List[str]):
+        try:
+            end_date = datetime.now()
+            start_date_5y = end_date - timedelta(days=5 * 365)
+
+            monthly_prices = []
+            names = []
+
+            for ticker in map(str.upper, ticker_list):
+                stock = yf.Ticker(ticker)
+
+                # full history to find min available date
+                history_data = stock.history(period="max")
+                if history_data.empty:
+                    continue
+                idx = history_data.index
+                if idx.tz is not None:
+                    idx = idx.tz_localize(None)
+                min_date = idx.min()
+
+                # timezone-naive start cut
+                start_date = min(
+                    start_date_5y.replace(tzinfo=None), min_date.to_pydatetime()
+                )
+
+                # fetch monthly, then resample to calendar month-end to be safe
+                df = stock.history(start=start_date, end=end_date, interval="1mo")
+                if df.empty or "Close" not in df:
+                    continue
+                px = df.copy()
+                if px.index.tz is not None:
+                    px.index = px.index.tz_localize(None)
+                mclose = px["Close"].resample("ME").last()
+
+                monthly_prices.append(mclose.rename(ticker))
+                names.append(ticker)
+
+            if len(monthly_prices) < 2:
+                raise ValueError("Not enough valid tickers for correlation.")
+
+            # align on overlap and compute monthly log-returns
+            px_panel = pd.concat(monthly_prices, axis=1)
+            r_m = np.log(px_panel / px_panel.shift(1)).dropna(how="any")
+
+            # Pearson correlation and return as ndarray
+            corr = r_m.corr(method="pearson").values
+            return corr
+
+        except Exception as e:
+            print(f"Error computing correlations: {e}")
+            return None
 
     def get_ticker_info(self, ticker: str) -> dict:
         """

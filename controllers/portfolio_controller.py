@@ -6,6 +6,7 @@ Manages interaction between models, views, and services.
 from datetime import datetime, timedelta
 from models.portfolio import Portfolio
 from models.asset import Asset
+from models.simulation import TCopulaGBMSimulator
 from services.API_prices import PriceService
 from views.table_view import TableView
 from views.plot_view import PlotView
@@ -52,6 +53,8 @@ class PortfolioController:
                 quantity=quantity,
                 purchase_price=purchase_price,
                 purchase_date=datetime.now(),
+                drift=0.068,
+                volatility=0.16,
             )
 
             # Fetch current price
@@ -59,7 +62,12 @@ class PortfolioController:
             if current_price:
                 asset.update_price(current_price)
 
+            # Add real drift and volatility
+            params = self.price_service.get_drift_volatility(ticker)
+            asset.add_real_parameters(params)
+            print(params)
             # Add to portfolio
+
             self.portfolio.add_asset(asset)
 
             self.table_view.print_success(
@@ -250,3 +258,33 @@ class PortfolioController:
             Portfolio instance
         """
         return self.portfolio
+
+    def naive_simulation(self, years: int, paths: int, interval: int = 5):
+        self.update_all_prices()
+        assets = self.portfolio.assets.copy()
+        tickers = [a.ticker for a in assets]
+
+        mu = [a.drift for a in assets]
+
+        sigma = [a.volatility for a in assets]
+
+        corr = self.price_service.get_correlations(tickers)
+
+        w = self.portfolio.get_weights()
+
+        weights = [w[a] / 100 for a in tickers]
+
+        S0 = [a.current_price for a in assets]
+
+        V0 = self.portfolio.total_value
+
+        sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, V0)
+
+        df = sim.simulate(n_years=years, n_paths=paths)
+
+        print("check df exists")
+        self.chart_view.plot_simulation_results(
+            simulation_df=df,
+            title=f"{years}-Year Portfolio Simulation",
+            confidence_levels=[interval, 100 - interval],
+        )

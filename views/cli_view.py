@@ -201,18 +201,17 @@ class CLIView:
     def handle_simulation(self) -> None:
         """Handle Monte Carlo simulation."""
         self.console.print("[bold cyan]Monte Carlo Simulation[/bold cyan]\n")
-        self.console.print(
-            "[yellow]This feature will be implemented in Phase 2[/yellow]"
-        )
-
-        # Placeholder for future implementation
         years = int(Prompt.ask("Simulation years", default="15"))
         paths = int(Prompt.ask("Number of paths", default="100,000"))
 
         self.console.print(
             f"\n[yellow]Simulation setup: {years} years, {paths:,} paths[/yellow]"
         )
-        self.console.print("[yellow]Coming soon...[/yellow]")
+        interval = float(
+            Prompt.ask(r"What is the $\alpha$ for your Confidence interval", default=5)
+        )
+
+        self.controller.naive_simulation(years, paths, interval)
 
     def handle_exit(self) -> None:
         """Handle application exit."""
