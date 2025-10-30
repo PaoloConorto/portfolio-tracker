@@ -3,4 +3,6 @@
 from .asset import Asset
 from .portfolio import Portfolio
 
-__all__ = ["Asset", "Portfolio"]
+from .simulation import TCopulaGBMSimulator
+
+__all__ = ["Asset", "Portfolio", "TCopulaGBMSimulator"]
