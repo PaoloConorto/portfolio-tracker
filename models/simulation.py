@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from scipy.stats import t as student_t
+from scipy.stats import multivariate_t, t as student_t, norm
 
 
 class TCopulaGBMSimulator:
@@ -73,28 +73,24 @@ class TCopulaGBMSimulator:
         self.sigma_step = self.sigma * self.sqrt_dt
 
     def _t_copula_gaussian_shocks(self, n_rows):
-        """
-        Generate Z ~ N(0,1) margins with t-copula dependence across k assets.
-        Vectorized:
-          1) Draw standard normals E ~ N(0, I_k)
-          2) Correlate: Z_tilde = E @ L^T
-          3) Scale by sqrt(nu / ChiSquare_nu) per row -> multivariate t
-          4) Convert componentwise to uniforms via t CDF
-          5) Map to Gaussian via Phi^{-1} for GBM marginals
-        """
-        # Step 1–2: correlated normals
-        E = self.rng.normal(size=(n_rows, self.k))
-        Z_corr = E @ self.L.T
-        chi2 = self.rng.chisquare(df=self.nu, size=(n_rows, 1))
-        t_scaled = Z_corr / np.sqrt(chi2 / self.nu)  # multivariate t
+        # multi_t draw
+        T = multivariate_t.rvs(
+            df=self.nu,
+            loc=np.zeros(self.k),
+            shape=self.corr,
+            size=n_rows,
+            random_state=self.rng,
+        )
+        if T.ndim == 1:
+            T = T[None, :]  # ensure 2-D
 
-        U = student_t.cdf(t_scaled, df=self.nu)
+        # Step 2: marginal t-CDF to get uniforms
+        U = student_t.cdf(T, df=self.nu)
 
-        # Step 5: map uniforms to standard normal
+        # Step 3: convert uniforms to N(0,1)
         eps = np.finfo(float).eps
-        U = np.clip(U, eps, 1.0 - eps)
-        Z = norm.ppf(U)
-        return Z  # shape (n_rows, k)
+        Z = norm.ppf(np.clip(U, eps, 1 - eps))
+        return Z
 
     def simulate(
         self,
