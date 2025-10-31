@@ -278,9 +278,12 @@ class PortfolioController:
         shares = [a.quantity for a in assets]
         V0 = self.portfolio.total_value
         sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, shares=shares, V0=V0)
-
+        self.table_view.print_info("Running simulation (this may take a moment)...")
         df = sim.simulate(n_years=years, n_paths=paths)
-
+        self.table_view.print_success(
+            f"Simulation complete! Generated {paths:,} paths."
+        )
+        self.table_view.display_simulation_risk_metrics(df, V0, years)
         self.chart_view.plot_simulation_results(
             simulation_df=df,
             # title=f"{years}-Year Portfolio Simulation",

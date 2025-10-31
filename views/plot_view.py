@@ -268,7 +268,6 @@ class PlotView:
     def plot_simulation_results(
         self,
         simulation_df: pd.DataFrame,
-        title: str = "Portfolio Simulation - t-Copula GBM",
         confidence_levels: list = [5, 95],
         save_path: str = None,
     ) -> None:
@@ -323,9 +322,6 @@ class PlotView:
 
         ax5 = fig.add_subplot(gs[2, 1])
         self._plot_performance_metrics(ax5, data, time_points)
-
-        # Main title with more top margin
-        fig.suptitle(title, fontsize=16, fontweight="bold", y=0.995)
 
         # Adjust layout to prevent overlaps
         plt.subplots_adjust(top=0.96, bottom=0.05, left=0.08, right=0.95)

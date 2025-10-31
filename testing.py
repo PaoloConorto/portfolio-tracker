@@ -1,5 +1,6 @@
 from models.simulation import TCopulaGBMSimulator
 from views.plot_view import PlotView
+from views.table_view import TableView
 import numpy as np
 
 # 1. Set up your simulator
@@ -30,4 +31,9 @@ chart_view.plot_simulation_results(
     title="15-Year Portfolio Simulation",
     confidence_levels=[5, 95],
     save_path="results.png",
+)
+
+plot_view = TableView()
+plot_view.display_simulation_risk_metrics(
+    simulation_df=simulation_df, initial_value=700.0, n_years=15
 )
