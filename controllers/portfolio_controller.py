@@ -262,29 +262,27 @@ class PortfolioController:
     def naive_simulation(self, years: int, paths: int, interval: int = 5):
         self.update_all_prices()
         assets = self.portfolio.assets.copy()
+
         tickers = [a.ticker for a in assets]
 
         mu = [a.drift for a in assets]
-
         sigma = [a.volatility for a in assets]
-
-        corr = self.price_service.get_correlations(tickers)
-
-        w = self.portfolio.get_weights()
-
-        weights = [w[a] / 100 for a in tickers]
-
+        if len(assets) == 1:
+            corr = [[1]]
+            weights = [1]
+        else:
+            corr = self.price_service.get_correlations(tickers)
+            w = self.portfolio.get_weights()
+            weights = [w[a] / 100 for a in tickers]
         S0 = [a.current_price for a in assets]
-
+        shares = [a.quantity for a in assets]
         V0 = self.portfolio.total_value
-
-        sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, V0)
+        sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, shares=shares, V0=V0)
 
         df = sim.simulate(n_years=years, n_paths=paths)
 
-        print("check df exists")
         self.chart_view.plot_simulation_results(
             simulation_df=df,
-            title=f"{years}-Year Portfolio Simulation",
+            # title=f"{years}-Year Portfolio Simulation",
             confidence_levels=[interval, 100 - interval],
         )

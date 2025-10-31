@@ -37,7 +37,7 @@ class TCopulaGBMSimulator:
     """
 
     def __init__(
-        self, mu, sigma, corr, weights, S0=1.0, nu=6, dt=1 / 12, V0=1.0, rng=42
+        self, mu, sigma, corr, weights, S0, shares, nu=6, dt=1 / 12, V0=1.0, rng=42
     ):
         self.mu = np.asarray(mu, dtype=float)
         self.sigma = np.asarray(sigma, dtype=float)
@@ -47,12 +47,8 @@ class TCopulaGBMSimulator:
         assert self.sigma.shape == (self.k,)
         assert self.corr.shape == (self.k, self.k)
         assert self.weights.shape == (self.k,)
-
-        if np.isscalar(S0):
-            self.S0 = np.full(self.k, float(S0))
-        else:
-            self.S0 = np.asarray(S0, dtype=float)
-            assert self.S0.shape == (self.k,)
+        self.S0 = np.asarray(S0, dtype=float)
+        assert self.S0.shape == (self.k,)
 
         # Cholesky for correlation
         self.L = np.linalg.cholesky(self.corr)
@@ -66,7 +62,7 @@ class TCopulaGBMSimulator:
 
         # Precompute buy-and-hold shares from initial weights
         # Shares = (w_i * V0) / S0_i
-        self.shares = (self.weights * self.V0) / self.S0
+        self.shares = np.array(shares)
 
         # GBM drift term per step
         self.mu_step = (self.mu - 0.5 * self.sigma**2) * self.dt

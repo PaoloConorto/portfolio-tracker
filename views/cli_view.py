@@ -189,7 +189,8 @@ class CLIView:
 
     def handle_remove_asset(self) -> None:
         """Handle removing an asset."""
-        ticker = Prompt.ask("Enter ticker to remove").upper()
+        tickers = [a.ticker for a in self.controller.portfolio.assets]
+        ticker = Prompt.ask("Enter ticker to remove", choices=tickers).upper()
 
         if Confirm.ask(f"Are you sure you want to remove {ticker}?"):
             self.controller.remove_asset(ticker)
@@ -210,7 +211,8 @@ class CLIView:
         interval = float(
             Prompt.ask(r"What is the $\alpha$ for your Confidence interval", default=5)
         )
-
+        # forecast_type = Prompt.ask("What Forecast type do you want?", choices=["GBM t-copula", "t-returns-GARCH t-copula", "VECM-GARCH"])
+        # if forecast_type == "GBM t-copula":
         self.controller.naive_simulation(years, paths, interval)
 
     def handle_exit(self) -> None:
