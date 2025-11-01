@@ -211,9 +211,8 @@ class CLIView:
         interval = float(
             Prompt.ask(r"What is the $\alpha$ for your Confidence interval", default=5)
         )
-        # forecast_type = Prompt.ask("What Forecast type do you want?", choices=["GBM t-copula", "t-returns-GARCH t-copula", "VECM-GARCH"])
-        # if forecast_type == "GBM t-copula":
-        self.controller.naive_simulation(years, paths, interval)
+        garch = Confirm.ask("Do you want GARCH volatility?")
+        self.controller.naive_simulation(garch, years, paths, interval)
 
     def handle_exit(self) -> None:
         """Handle application exit."""

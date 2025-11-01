@@ -259,7 +259,7 @@ class PortfolioController:
         """
         return self.portfolio
 
-    def naive_simulation(self, years: int, paths: int, interval: int = 5):
+    def naive_simulation(self, garch: bool, years: int, paths: int, interval: int = 5):
         self.update_all_prices()
         assets = self.portfolio.assets.copy()
 
@@ -279,7 +279,12 @@ class PortfolioController:
         V0 = self.portfolio.total_value
         sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, shares=shares, V0=V0)
         self.table_view.print_info("Running simulation (this may take a moment)...")
-        df = sim.simulate(n_years=years, n_paths=paths)
+        if garch:
+            # df = sim.garch_simulate()
+            print("Garch is coming soon")
+        else:
+            df = sim.simulate(n_years=years, n_paths=paths)
+        del sim
         self.table_view.print_success(
             f"Simulation complete! Generated {paths:,} paths."
         )
