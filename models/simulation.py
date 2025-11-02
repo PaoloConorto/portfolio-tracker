@@ -73,9 +73,8 @@ class TCopulaGBMSimulator:
         self.mu_step = (self.mu - 0.5 * self.sigma**2) * self.dt
         self.sigma_step = self.sigma * self.sqrt_dt
         self._mvt = multivariate_t(
-            loc=np.zeros(self.k), shape=self.corr, df=self.nu_cop, seed=self.rng
+            loc=np.zeros(self.k), shape=self.corr, df=self.nu, seed=self.rng
         )
-        self.t_scale = np.sqrt(self.nu_marg / (self.nu_marg - 2.0))
 
     def _t_copula_gaussian_shocks(self, n_rows):
         T = self._mvt.rvs(size=n_rows)
