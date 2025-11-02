@@ -189,8 +189,32 @@ class PriceService:
             px_panel = pd.concat(monthly_prices, axis=1)
             r_m = np.log(px_panel / px_panel.shift(1)).dropna(how="any")
 
-            # Pearson correlation and return as ndarray
-            corr = r_m.corr(method="pearson").values
+            # Kendall_tau_correlation for t copula fitting correlation and return as ndarray
+            kendall_tau_matrix = r_m.corr(method="kendall").values
+            r_star = np.sin((np.pi / 2) * kendall_tau_matrix)
+
+            def adjust_correlation(r_star, delta=1e-8):
+                # Step 1: Spectral decomposition
+                eigenvalues, eigenvectors = np.linalg.eigh(r_star)
+
+                # Step 2: Replace negative eigenvalues
+                eigenvalues[eigenvalues < delta] = delta
+
+                # Step 3: Reconstruct matrix
+                Q = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+
+                # Step 4: Convert to correlation matrix
+                D = np.diag(1 / np.sqrt(np.diag(Q)))
+                R = D @ Q @ D
+
+                return R
+
+            if not np.all(np.linalg.eigvals(r_star) > 0):
+                print(r"Not postive definite $\tau$")
+                corr = adjust_correlation(r_star)
+            else:
+                corr = r_star
+
             return corr
 
         except Exception as e:
