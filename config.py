@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Application metadata
 APP_NAME = "Portfolio Tracker"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.2.0"
 ORGANIZATION = "a.s.r."
 
 # Directories

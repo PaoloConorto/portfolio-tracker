@@ -323,7 +323,6 @@ class PlotView:
         ax5 = fig.add_subplot(gs[2, 1])
         self._plot_performance_metrics(ax5, data, time_points)
 
-        # Adjust layout to prevent overlaps
         plt.subplots_adjust(top=0.96, bottom=0.05, left=0.08, right=0.95)
 
         if save_path:
@@ -346,7 +345,6 @@ class PlotView:
         """Plot main simulation paths with statistics."""
         from matplotlib.ticker import FuncFormatter
 
-        # Plot sample of individual paths
         n_paths = data.shape[0]
         n_sample = min(100, n_paths)
 
@@ -359,7 +357,6 @@ class PlotView:
         for i in sample_indices:
             ax.plot(time_points, data[i], alpha=0.1, color="#2E86AB", linewidth=0.5)
 
-        # Plot confidence intervals
         ax.fill_between(
             time_points,
             lower_ci,
@@ -509,7 +506,6 @@ class PlotView:
             linewidth=0.5,
         )
 
-        # Overlay normal distribution
         mu, std = np.mean(filtered_returns), np.std(filtered_returns)
         x = np.linspace(filtered_returns.min(), filtered_returns.max(), 100)
         normal_pdf = stats.norm.pdf(x, mu, std)
@@ -517,7 +513,7 @@ class PlotView:
             x,
             normal_pdf,
             color="#A23B72",
-            linewidth=2,
+            linewidth=1,
             label=f"Normal fit\n(μ={mu:.4f}, σ={std:.4f})",
         )
 
