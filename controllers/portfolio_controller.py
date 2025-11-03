@@ -25,6 +25,7 @@ class PortfolioController:
         self.price_service = PriceService()
         self.table_view = TableView()
         self.chart_view = PlotView()
+        self.garch_possibility = None
 
     def add_asset(
         self,
@@ -63,9 +64,16 @@ class PortfolioController:
                 asset.update_price(current_price)
 
             # Add real drift and volatility
-            params = self.price_service.get_drift_volatility(ticker)
-            asset.add_real_parameters(params)
-            print(params)
+            params = self.price_service.get_drift_volatility_and_garch(ticker)
+            asset.add_real_parameters(params[0])
+
+            if params[1] == "NO GARCH":
+                self.garch_possibility = (False, ticker)
+
+            else:
+                self.garch_possibility = (True, "")
+                asset.add_garch_parameters(params[1])
+
             # Add to portfolio
 
             self.portfolio.add_asset(asset)
@@ -267,6 +275,7 @@ class PortfolioController:
 
         mu = [a.drift for a in assets]
         sigma = [a.volatility for a in assets]
+
         if len(assets) == 1:
             corr = [[1]]
             weights = [1]
@@ -274,23 +283,38 @@ class PortfolioController:
             corr = self.price_service.get_correlations(tickers)
             w = self.portfolio.get_weights()
             weights = [w[a] / 100 for a in tickers]
+
         S0 = [a.current_price for a in assets]
         shares = [a.quantity for a in assets]
         V0 = self.portfolio.total_value
+
         sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, shares=shares, V0=V0)
+
         self.table_view.print_info("Running simulation (this may take a moment)...")
-        if garch:
-            # df = sim.garch_simulate()
-            print("Garch is coming soon")
+
+        if garch and self.garch_possibility[0]:
+            garch_dict = {}
+            garch_dict["omega"] = [a.omega for a in assets]
+            garch_dict["alpha"] = [a.alpha for a in assets]
+            garch_dict["beta"] = [a.beta for a in assets]
+            garch_dict["mu"] = [a.mu for a in assets]
+            garch_dict["h0"] = [a.h0 for a in assets]
+            df = sim.garch_simulate(
+                garch_dict, n_years=years, n_paths=paths, batch_size=int(paths / 10)
+            )
+        elif garch:
+            print(f"Remove {self.garch_possibility[1]} from the portfolio to use GARCH")
         else:
             df = sim.simulate(n_years=years, n_paths=paths)
+
         del sim
+
         self.table_view.print_success(
             f"Simulation complete! Generated {paths:,} paths."
         )
+
         self.table_view.display_simulation_risk_metrics(df, V0, years)
         self.chart_view.plot_simulation_results(
             simulation_df=df,
-            # title=f"{years}-Year Portfolio Simulation",
-            confidence_levels=[interval, 100 - interval],
+            confidence_levels=[5, 95],
         )

@@ -34,8 +34,8 @@ class CLIView:
         """Display welcome banner."""
         banner = """
 [bold cyan]╔══════════════════════════════════════════════╗
-║   Portfolio Tracker - Investment Manager    ║
-║                   a.s.r.                    ║
+║   Portfolio Tracker - Investment Manager     ║
+║                   a.s.r.                     ║
 ╚══════════════════════════════════════════════╝[/bold cyan]
         """
         self.console.print(banner)
@@ -208,11 +208,8 @@ class CLIView:
         self.console.print(
             f"\n[yellow]Simulation setup: {years} years, {paths:,} paths[/yellow]"
         )
-        interval = float(
-            Prompt.ask(r"What is the $\alpha$ for your Confidence interval", default=5)
-        )
         garch = Confirm.ask("Do you want GARCH volatility?")
-        self.controller.naive_simulation(garch, years, paths, interval)
+        self.controller.naive_simulation(garch, years, paths)
 
     def handle_exit(self) -> None:
         """Handle application exit."""

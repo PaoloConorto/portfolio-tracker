@@ -28,6 +28,11 @@ class Asset:
     asset_class: str
     quantity: float
     purchase_price: float
+    omega: Optional[float] = None
+    alpha: Optional[float] = None
+    beta: Optional[float] = None
+    mu: Optional[float] = None
+    h0: Optional[float] = None
     purchase_date: datetime = field(default_factory=datetime.now)
     current_price: Optional[float] = None
     drift: float = 0.068
@@ -73,6 +78,14 @@ class Asset:
         """
         self.drift = par[0]
         self.volatility = par[1]
+
+    def add_garch_parameters(self, garch_par) -> None:
+        """Adds the actual garch parameters coerced for stationarity"""
+        self.omega = garch_par["omega"]
+        self.alpha = garch_par["alpha"]
+        self.beta = garch_par["beta"]
+        self.mu = garch_par["mu"]
+        self.h0 = self.omega / (1 - self.alpha - self.beta)
 
     def update_price(self, new_price: float) -> None:
         """

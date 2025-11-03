@@ -103,7 +103,7 @@ class PriceService:
             print(f"Error fetching historical data for {ticker}: {e}")
             return pd.DataFrame()
 
-    def get_drift_volatility(self, ticker: str):
+    def get_drift_volatility_and_garch(self, ticker: str):
         """Get annualized drift and volatility for a ticker
 
         Args:
@@ -136,10 +136,11 @@ class PriceService:
 
             mclose = df["Close"].resample("ME").last()
             r_m = np.log(mclose / mclose.shift(1)).dropna()
+            garch_par = self._fit_garch11_norm(r_m)
 
             mu_m = r_m.mean()
             sigma_m = r_m.std(ddof=1)
-            return 12 * mu_m, np.sqrt(12) * sigma_m
+            return (12 * mu_m, np.sqrt(12) * sigma_m), garch_par
 
         except Exception as e:
             print(f"Error fetching drift and volatility data for {ticker}: {e}")
@@ -290,3 +291,62 @@ class PriceService:
         except Exception as e:
             print(f"Error calculating price change for {ticker}: {e}")
             return None
+
+    def _fit_garch11_norm(self, ret: pd.Series):
+        """
+        Fit GARCH(1,1) with normal innovations to monthly log returns.
+        Returns ANNUALIZED parameters for consistency with GBM simulation.
+        """
+        from arch.univariate import GARCH, ConstantMean, Normal
+
+        ret_clean = ret.dropna()
+
+        if len(ret_clean) < 24:
+            print("Insufficient data for GARCH estimation")
+            return "NO GARCH"
+        model = ConstantMean(ret_clean * 100)
+        model.volatility = GARCH(p=1, q=1)
+        model.distribution = Normal()
+
+        try:
+            result = model.fit(disp="off", show_warning=False)
+            params = result.params
+
+            omega = params["omega"] / 10000
+            alpha = params["alpha[1]"]
+            beta = params["beta[1]"]
+            mu = params.get("mu", ret_clean.mean() * 100) / 100
+
+            persistence = alpha + beta
+            if persistence >= 0.999:
+                scale_factor = 0.98 / persistence
+                alpha *= scale_factor
+                beta *= scale_factor
+                persistence = alpha + beta
+
+            h0_monthly = omega / (1 - persistence)
+
+            omega_annual = omega * 12
+            h0_annual = h0_monthly * 12
+            mu_annual = mu * 12
+
+            return {
+                "omega": omega_annual,
+                "alpha": alpha,
+                "beta": beta,
+                "h0": h0_annual,
+                "mu": mu_annual,
+                "persistence": persistence,
+            }
+
+        except Exception as e:
+            print(f"GARCH fitting failed: {e}")
+            var_monthly = ret_clean.var()
+            return {
+                "omega": var_monthly * 0.1 * 12,
+                "alpha": 0.1,
+                "beta": 0.85,
+                "h0": var_monthly * 12,
+                "mu": ret_clean.mean() * 12,
+                "persistence": 0.95,
+            }

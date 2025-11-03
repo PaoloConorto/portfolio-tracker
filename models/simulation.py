@@ -156,70 +156,87 @@ class TCopulaGBMSimulator:
 
     def garch_simulate(
         self,
-        h0,
-        garch,
+        garch_params: dict,
         n_years: int,
         n_paths: int,
         return_asset_paths: bool = False,
         batch_size: int = None,
     ):
-        """Monte-Carlo GBM simulation with t-copula dependent shocks and GARCH"""
+        """
+        Monte Carlo GBM with GARCH(1,1) volatility and t-copula dependence.
 
+        GARCH: h_t = omega + alpha * epsilon_{t-1}^2 + beta * h_{t-1}
+        Returns: r_t = mu * dt + sqrt(h_t * dt) * Z_t
+        """
         N = int(round(n_years / self.dt))
         cols = [f"t_{i}" for i in range(N + 1)]
         batch_size = n_paths if batch_size is None else batch_size
 
+        omega = np.asarray(garch_params["omega"], dtype=float).reshape(1, 1, self.k)
+        alpha = np.asarray(garch_params["alpha"], dtype=float).reshape(1, 1, self.k)
+        beta = np.asarray(garch_params["beta"], dtype=float).reshape(1, 1, self.k)
+        h0 = np.asarray(garch_params["h0"], dtype=float).reshape(1, 1, self.k)
+        mu = np.asarray(garch_params["h0"], dtype=float).reshape(1, 1, self.k)
+
+        persistence = alpha + beta
+        if np.any(persistence >= 1.0):
+            print(f"WARNING: GARCH not stationary. Adjusting...")
+            scale = 0.98 / persistence
+            alpha *= scale
+            beta *= scale
+
+        logS0 = np.log(self.S0).reshape(1, 1, self.k)
+
         V_blocks = []
         S_blocks = [] if return_asset_paths else None
-        logS0 = np.log(self.S0)[None, None, :]  # (1,1,k)
-        omega = np.asarray(garch["omega"], float)[None, None, :]  # (1,1,k)
-        alpha = np.asarray(garch["alpha"], float)[None, None, :]
-        beta = np.asarray(garch["beta"], float)
-        h0 = np.asarray(h0, float)[None, None, :]
-        mu = self.mu[None, None, :]
 
         done = 0
         while done < n_paths:
             b = min(batch_size, n_paths - done)
 
-            # 1) Draw all shocks for this batch and reshape to (b,N,k)
             Z = self._t_copula_gaussian_shocks(b * N).reshape(b, N, self.k)
 
-            # 2) g_t = alpha * z_t^2 + beta  (broadcast on asset dim)
-            g = alpha * (Z**2) + beta  # (b,N,k)
+            h_t = np.zeros((b, N, self.k))
+            log_returns = np.zeros((b, N, self.k))
 
-            # 3) G = cumprod(g) along time; G_prev = [ones, G[:,:-1,:]]
-            G = np.cumprod(g, axis=1)  # G[:, t, :] = ∏_{j=0..t} g_j
-            ones = np.ones((b, 1, self.k), dtype=float)
-            G_prev = np.concatenate(
-                [ones, G[:, :-1, :]], axis=1
-            )  # G_{t-1}, with G_{-1}=1
+            h_t[:, 0, :] = h0.reshape(1, self.k)
 
-            # 4) prefix sums of 1/G for Σ_{m=0}^{t-1} 1/G_m
-            invG = 1.0 / G  # (b,N,k)
-            cs_invG = np.cumsum(invG, axis=1)  # sum up to index t
-            cs_invG_prev = np.concatenate(
-                [np.zeros((b, 1, self.k)), cs_invG[:, :-1, :]], axis=1
-            )
+            # First return
+            log_returns[:, 0, :] = (
+                (mu - 0.5 * h_t[:, 0:1, :]) * self.dt
+                + np.sqrt(h_t[:, 0:1, :] * self.dt) * Z[:, 0:1, :]
+            ).squeeze(1)
 
-            # 5) h_t for t=0..N-1 (annualized variance used in step t)
-            h_t = G_prev * (h0 + omega * cs_invG_prev)  # (b,N,k)
+            # GARCH recursion
+            for t in range(1, N):
 
-            # 6) log-return increments and price paths (vectorized cumsum)
-            dlogS = (mu - 0.5 * h_t) * self.dt + np.sqrt(h_t * self.dt) * Z  # (b,N,k)
+                residual_sq = (log_returns[:, t - 1 : t, :] - mu * self.dt) ** 2
+                epsilon_sq = residual_sq / (h_t[:, t - 1 : t, :] * self.dt + 1e-10)
+
+                h_t[:, t : t + 1, :] = (
+                    omega + alpha * epsilon_sq + beta * h_t[:, t - 1 : t, :]
+                )
+                h_t[:, t : t + 1, :] = np.maximum(h_t[:, t : t + 1, :], 1e-8)
+
+                log_returns[:, t : t + 1, :] = (
+                    mu - 0.5 * h_t[:, t : t + 1, :]
+                ) * self.dt + np.sqrt(h_t[:, t : t + 1, :] * self.dt) * Z[
+                    :, t : t + 1, :
+                ]
+
+            cumulative_log_returns = np.cumsum(log_returns, axis=1)
             logS = np.concatenate(
                 [
                     logS0.repeat(b, axis=0),
-                    logS0.repeat(b, axis=0) + np.cumsum(dlogS, axis=1),
+                    logS0.repeat(b, axis=0) + cumulative_log_returns,
                 ],
                 axis=1,
             )
-            S = np.exp(logS)  # (b,N+1,k)
 
-            # 7) portfolio aggregation
-            V = (S * self.shares[None, None, :]).sum(axis=2)  # (b,N+1)
-
+            S = np.exp(logS)
+            V = (S * self.shares.reshape(1, 1, self.k)).sum(axis=2)
             V_blocks.append(V)
+
             if return_asset_paths:
                 S_blocks.append(S)
 
@@ -235,4 +252,5 @@ class TCopulaGBMSimulator:
                 for i in range(self.k)
             }
             return dfV, assets
+
         return dfV

@@ -617,7 +617,7 @@ class TableView:
             style="bold cyan",
         )
         summary_text.append(
-            "║              EXECUTIVE SUMMARY & ASSESSMENT                ║\n",
+            "║              EXECUTIVE SUMMARY & ASSESSMENT               ║\n",
             style="bold cyan",
         )
         summary_text.append(
