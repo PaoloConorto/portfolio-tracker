@@ -1,6 +1,5 @@
 """
 Portfolio Tracker - Main Entry Point
-a.s.r.
 
 A command-line application for tracking investment portfolios.
 """
