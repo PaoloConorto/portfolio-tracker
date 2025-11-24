@@ -7,8 +7,8 @@ from pathlib import Path
 
 # Application metadata
 APP_NAME = "Portfolio Tracker"
-APP_VERSION = "1.2.0"
-ORGANIZATION = "a.s.r."
+APP_VERSION = "1.2.1"
+ORGANIZATION = "GIT"
 
 # Directories
 BASE_DIR = Path(__file__).parent
