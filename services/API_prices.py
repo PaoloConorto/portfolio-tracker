@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from typing import Optional, List, Tuple
 from datetime import datetime, timedelta
+from scipy.stats import t as student_t
 
 
 class PriceService:
@@ -220,6 +221,62 @@ class PriceService:
 
         except Exception as e:
             print(f"Error computing correlations: {e}")
+            return None
+
+    def get_t_marginal_parameters(self, ticker_list: List[str]):
+        try:
+            end_date = datetime.now()
+            start_date_5y = end_date - timedelta(days=5 * 365)
+
+            monthly_prices = []
+            names = []
+
+            for ticker in map(str.upper, ticker_list):
+                stock = yf.Ticker(ticker)
+
+                # full history to find min available date
+                history_data = stock.history(period="max")
+                if history_data.empty:
+                    continue
+                idx = history_data.index
+                if idx.tz is not None:
+                    idx = idx.tz_localize(None)
+                min_date = idx.min()
+
+                # timezone-naive start cut
+                start_date = min(
+                    start_date_5y.replace(tzinfo=None), min_date.to_pydatetime()
+                )
+
+                # fetch monthly, then resample to calendar month-end to be safe
+                df = stock.history(start=start_date, end=end_date, interval="1mo")
+                if df.empty or "Close" not in df:
+                    continue
+                px = df.copy()
+                if px.index.tz is not None:
+                    px.index = px.index.tz_localize(None)
+                mclose = px["Close"].resample("ME").last()
+
+                monthly_prices.append(mclose.rename(ticker))
+                names.append(ticker)
+
+            # align on overlap and compute monthly log-returns
+            px_panel = pd.concat(monthly_prices, axis=1)
+            r_m = np.log(px_panel / px_panel.shift(1)).dropna(how="any")
+            mu_m = r_m.mean(axis=0)
+            sigma_m = r_m.std(axis=0, ddof=1)
+            e_m = (r_m - mu_m) / sigma_m
+            df_marginals = np.empty(e_m.shape[1])
+
+            for j, col in enumerate(e_m.columns):
+                df_hat, _, __ = student_t.fit(
+                    e_m[col].values, floc=0.0, fscale=1.0  # fix mean 0  # fix scale 1
+                )
+                df_marginals[j] = df_hat
+            return df_marginals
+
+        except Exception as e:
+            print(f"Error computing degrees of freedoms: {e}")
             return None
 
     def get_ticker_info(self, ticker: str) -> dict:

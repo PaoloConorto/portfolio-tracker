@@ -44,6 +44,7 @@ class TCopulaGBMSimulator:
         weights,
         S0,
         shares,
+        dfs,
         nu=6,
         dt=1 / 12,
         V0=1.0,
@@ -68,6 +69,7 @@ class TCopulaGBMSimulator:
         self.V0 = float(V0)
         self.rng = np.random.default_rng(seed=rng)
         self.shares = np.array(shares)
+        self.df_marginals = dfs
 
         # GBM drift term per step
         self.mu_step = (self.mu - 0.5 * self.sigma**2) * self.dt
@@ -85,10 +87,25 @@ class TCopulaGBMSimulator:
         Z = norm.ppf(np.clip(U, eps, 1 - eps))
         return Z
 
+    def _t_copula_t_shocks(self, n_rows):
+        T = self._mvt.rvs(size=n_rows)
+        if T.ndim == 1:
+            T = T[None, :]
+        U = student_t.cdf(T, df=self.nu)
+        eps = np.finfo(float).eps
+        Z = np.clip(U, eps, 1 - eps)
+        df = self.df_marginals
+        t_marg = student_t.ppf(Z, df=df)
+        std_factor = np.sqrt(df / (df - 2.0))
+        std_factor = std_factor[None, :]
+        shocks = t_marg / std_factor
+        return shocks
+
     def simulate(
         self,
         n_years: int,
         n_paths: int,
+        t_marg: bool = False,
         return_asset_paths: bool = False,
         batch_size: int = None,
     ):
@@ -116,7 +133,11 @@ class TCopulaGBMSimulator:
 
             # Draw all shocks for this batch and all steps at once
             n_rows = b * n_steps
-            Z = self._t_copula_gaussian_shocks(n_rows)  # (b*n_steps, k)
+            if t_marg:
+                Z = self._t_copula_t_shocks(n_rows)
+            else:
+                Z = self._t_copula_gaussian_shocks(n_rows)  # (b*n_steps, k)
+
             Z = Z.reshape(b, n_steps, self.k)
 
             # Per-step log-returns

@@ -267,11 +267,17 @@ class PortfolioController:
         """
         return self.portfolio
 
-    def naive_simulation(self, garch: bool, years: int, paths: int, interval: int = 5):
+    def naive_simulation(self, garch: bool, years: int, paths: int, t_marginals: bool):
         self.update_all_prices()
         assets = self.portfolio.assets.copy()
 
         tickers = [a.ticker for a in assets]
+        # In case of t_marginals we must fit the dfs
+        if t_marginals:
+            self.table_view.print_info("Updating prices for all assets...")
+            dfs = self.price_service.get_t_marginal_parameters(tickers)
+        else:
+            dfs = None
 
         mu = [a.drift for a in assets]
         sigma = [a.volatility for a in assets]
@@ -288,7 +294,9 @@ class PortfolioController:
         shares = [a.quantity for a in assets]
         V0 = self.portfolio.total_value
 
-        sim = TCopulaGBMSimulator(mu, sigma, corr, weights, S0, shares=shares, V0=V0)
+        sim = TCopulaGBMSimulator(
+            mu, sigma, corr, weights, S0, shares=shares, V0=V0, dfs=dfs
+        )
 
         self.table_view.print_info("Running simulation (this may take a moment)...")
 
@@ -305,7 +313,7 @@ class PortfolioController:
         elif garch:
             print(f"Remove {self.garch_possibility[1]} from the portfolio to use GARCH")
         else:
-            df = sim.simulate(n_years=years, n_paths=paths)
+            df = sim.simulate(n_years=years, n_paths=paths, t_marg=t_marginals)
 
         del sim
 

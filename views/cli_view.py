@@ -35,7 +35,6 @@ class CLIView:
         banner = """
 [bold cyan]╔══════════════════════════════════════════════╗
 ║   Portfolio Tracker - Investment Manager     ║
-║                   a.s.r.                     ║
 ╚══════════════════════════════════════════════╝[/bold cyan]
         """
         self.console.print(banner)
@@ -204,12 +203,12 @@ class CLIView:
         self.console.print("[bold cyan]Monte Carlo Simulation[/bold cyan]\n")
         years = int(Prompt.ask("Simulation years", default="15"))
         paths = int(Prompt.ask("Number of paths", default="100,000"))
-
+        t_marg = Confirm.ask("Do you want t-marginal distributions?")
         self.console.print(
             f"\n[yellow]Simulation setup: {years} years, {paths:,} paths[/yellow]"
         )
         garch = Confirm.ask("Do you want GARCH volatility?")
-        self.controller.naive_simulation(garch, years, paths)
+        self.controller.naive_simulation(garch, years, paths, t_marg)
 
     def handle_exit(self) -> None:
         """Handle application exit."""
