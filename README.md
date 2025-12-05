@@ -52,11 +52,11 @@ The simulation evolves prices in discrete time with time step $ \Delta t $ and a
 ## 2. Model Setup and Parameters
 
 Let:
-$$
+\[
 \mu = (\mu_1, \dots, \mu_k)^\top, \quad 
 \sigma = (\sigma_1, \dots, \sigma_k)^\top, \quad
 R \in \mathbb{R}^{k\times k}
-$$
+\]
 where:
 - $ \mu_i $ is the annual drift (expected return) of asset $ i $,
 - $ \sigma_i $ is its annual volatility,
